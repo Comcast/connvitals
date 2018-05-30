@@ -10,6 +10,8 @@ Checks a machines connection to a specific host or list of hosts in terms of pac
 ## Dependencies
 The utility runs on Python 3 (tested 3.6.3), but requires no non-standard external modules.
 
+However, in most cases you will need `setuptools` after installation, and if you are using an older version of Python (< 3.5) then you will need to install the backport of `typing`. These should be handled for you if you are using an `.rpm` file or `pip` to install `connvitals`.
+
 ## Installation
 ### Binary packages
 Binary packages are offered in `.rpm` format for Fedora/CentOS/RHEL and `.whl` format for all other operating systems under '[Releases](https://github.com/connvitals/releases)'.
