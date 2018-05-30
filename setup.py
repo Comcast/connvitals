@@ -117,7 +117,7 @@ setup(
 		'Topic :: Utilities',
 
 		# Pick your license as you wish
-		'License :: Other/Proprietary License',
+		'License :: OSI Approved :: Apache Software License',
 
 		# Environment in which this program is designed to run
 		'Environment :: Console',
