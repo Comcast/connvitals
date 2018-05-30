@@ -2,7 +2,9 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 Checks a machines connection to a specific host or list of hosts in terms of packet loss, icmp latency, routing, and anything else that winds up getting added.
+
 *Note: Does not recognize duplicate hosts passed on `argv` and will test each as though unique.*
+
 *Note: Under normal execution conditions, requires super-user privileges to run.*
 
 ## Dependencies
