@@ -34,6 +34,9 @@ Windows line endings (carriage-return-then-linefeed (CRLF)/'\r\n' )
 * **All** files in the project **must** end with a newline (leave a blank line
 at the end of the file.)
 
+If there's a good reason you must catch a general `Exception`, state your case
+in the pull request and I'll probably allow it.
+
 Now some comcast stuff:
 
 ## CLA
