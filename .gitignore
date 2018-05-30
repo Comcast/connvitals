@@ -1,0 +1,16 @@
+# Sublime project files
+*.sublime-*
+
+# ViM swapfiles
+*.swp
+*.swp~
+
+# Python Byte-Code caches
+*.pyc
+__pycache__
+
+# Setuputils build directories
+build
+dist
+*.egg-info
+

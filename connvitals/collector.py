@@ -1,0 +1,158 @@
+# Copyright 2018 Comcast Cable Communications Management, LLC
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+# http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""This module defines a single worker to collect stats from a single host"""
+
+import multiprocessing
+import math
+from . import utils, config, ping, traceroute, ports
+
+class Collector(multiprocessing.Process):
+	"""
+	A threaded worker that collects stats for a single host.
+	"""
+	trace = None
+	result = [utils.PingResult(-1, -1, -1, -1, 100.),
+	          utils.Trace([utils.TraceStep('*', -1)] * 10),
+	          utils.ScanResult(None, None, None)]
+
+	def __init__(self, host: str):
+		"""
+		Initializes the Collector, and its worker pool
+		"""
+		super(Collector, self).__init__()
+
+		self.hostname = host
+		self.host = config.HOSTS[host]
+		self.name = host
+
+		self.pipe = multiprocessing.Pipe()
+
+	def run(self):
+		"""
+		Called when the thread is run
+		"""
+		with multiprocessing.pool.ThreadPool() as pool:
+			pscan_result, trace_result, ping_result = None, None, None
+			if config.PORTSCAN:
+				pscan_result = pool.apply_async(ports.portScan,
+													 (self.host, pool),
+													 error_callback=utils.error)
+			if config.TRACE:
+				trace_result = pool.apply_async(traceroute.trace,
+													 (self.host,),
+													 error_callback=utils.error)
+			if not config.NOPING:
+				try:
+					self.ping(pool)
+				except (multiprocessing.TimeoutError, ValueError):
+					self.result[0] = type(self).result[0]
+			if config.TRACE:
+				try:
+					self.result[1] = trace_result.get(config.HOPS)
+				except multiprocessing.TimeoutError:
+					self.result[1] = type(self).result[1]
+			if config.PORTSCAN:
+				try:
+					self.result[2] = pscan_result.get(0.5)
+				except multiprocessing.TimeoutError:
+					self.result[2] = type(self).result[2]
+
+			self.pipe[1].send(self.result)
+
+	def ping(self, pool: multiprocessing.pool.ThreadPool):
+		"""
+		Pings the host
+		"""
+		pinger = ping.Pinger(self.host, bytes(config.PAYLOAD))
+
+		# Aggregates round-trip time for each packet in the sequence
+		rtt, lost = [], 0
+
+		# Sends, receives and parses all icmp packets asynchronously
+		results = pool.map_async(pinger.ping,
+		                              range(config.NUMPINGS),
+		                              error_callback=utils.error)
+		pkts = results.get(8)
+		pinger.sock.close()
+		del pinger
+
+		for pkt in pkts:
+			if pkt != None and pkt > 0:
+				rtt.append(pkt*1000)
+			else:
+				lost += 1
+
+		try:
+			avg = sum(rtt) / len(rtt)
+			std = 0.
+			for item in rtt:
+				std += (avg - item)**2
+			std /= len(rtt) - 1
+			std = math.sqrt(std)
+		except ZeroDivisionError:
+			std = 0.
+
+		self.result[0] = utils.PingResult(min(rtt), avg, max(rtt), std, lost/config.NUMPINGS *100.0)
+
+	def __str__(self) -> str:
+		"""
+		Implements 'str(self)'
+
+		Returns a plaintext output result
+		"""
+		ret = []
+		if self.host[0] == self.hostname:
+			ret.append(self.hostname)
+		else:
+			ret.append("%s (%s)" % (self.hostname, self.host[0]))
+
+		pings, trace, scans = self.result
+
+		if pings:
+			ret.append(str(pings))
+		if trace and trace != self.trace:
+			self.trace = trace
+			ret.append(str(trace))
+		if scans:
+			ret.append(str(scans))
+
+		return "\n".join(ret)
+
+	def __repr__(self) -> repr:
+		"""
+		Implements `repr(self)`
+
+		Returns a JSON output result
+		"""
+		ret = [r'{"addr":"%s"' % self.host[0]]
+		ret.append(r'"name":"%s"' % self.hostname)
+
+		if not config.NOPING:
+			ret.append(r'"ping":%s' % repr(self.result[0]))
+
+		if config.TRACE and self.trace != self.result[1]:
+			self.trace = self.result[1]
+			ret.append(r'"trace":%s' % repr(self.result[1]))
+
+		if config.PORTSCAN:
+			ret.append(r'"scan":%s' % repr(self.result[2]))
+
+		return ','.join(ret) + '}'
+
+	def recv(self):
+		"""
+		Returns a message from the Collector's Pipe
+		"""
+		return self.pipe[0].recv()
