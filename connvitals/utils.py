@@ -58,6 +58,11 @@ Trace = typing.NewType("Trace", typing.List[TraceStep])
 def traceStepToStr(self: TraceStep) -> str:
 	"""
 	Returns the string representation of a step of a route trace in plaintext
+
+	>>> traceStepToStr(TraceStep("1.2.3.4", 3.059267))
+	'1.2.3.4\\t3.059'
+	>>> traceStepToStr(TraceStep("*", -1))
+	'*'
 	"""
 	if self.rtt < 0 or self.host == "*":
 		return "*"
@@ -66,6 +71,11 @@ def traceStepToStr(self: TraceStep) -> str:
 def traceStepRepr(self: TraceStep) -> str:
 	"""
 	Returns the JSON representation of a single step in a route trace
+
+	>>> traceStepRepr(TraceStep("1.2.3.4", 3.059267))
+	'["1.2.3.4", 3.059267]'
+	>>> traceStepRepr(TraceStep("*", -1))
+	'["*"]'
 	"""
 	if self.rtt < 0 or self.host == "*":
 		return '["*"]'
@@ -76,15 +86,27 @@ def compareTraceSteps(self: TraceStep, other: TraceStep) -> bool:
 	Implements `self == other`
 
 	Two trace steps are considered equal iff their hosts are the same - rtt is not considered.
+
+	>>> compareTraceSteps(TraceStep("localhost", -800), TraceStep("localhost", 900))
+	True
+	>>> compareTraceSteps(TraceStep("localhost", 7), TraceStep("127.0.0.1", 7))
+	False
 	"""
 	return self.host == other.host
 
-def traceStepIsValid(self: TraceStep):
+def traceStepIsValid(self: TraceStep) -> bool:
 	"""
 	Implements `bool(self)`
 
 	Returns True if the step reports that the packet reached the host within the timeout,
 	False otherwise.
+
+	>>> traceStepIsValid(TraceStep('*', -1))
+	False
+	>>> traceStepIsValid(TraceStep("someaddr", 0))
+	True
+	>>> traceStepIsValid(TraceStep("someotheraddr", 27.0))
+	True
 	"""
 	return self.rtt >= 0 and self.host != "*"
 
@@ -101,6 +123,11 @@ def compareTraces(self: Trace, other: Trace) -> bool:
 	i.e. does *not* check the rtts of any or all trace steps.
 
 	Note: ignores steps that are invalid ('*').
+
+	>>> a = Trace([TraceStep('0.0.0.1', 0), TraceStep('0.0.0.2', 0)])
+	>>> b=Trace([TraceStep('0.0.0.1',0), TraceStep('*',-1), TraceStep('*',-1), TraceStep('0.0.0.2',0)])
+	>>> compareTraces(a, b)
+	True
 	"""
 	this, that = [step for step in self if step], [step for step in other if step]
 	return len(this) == len(that) and all(this[i] == that[i] for i in range(len(this)))
