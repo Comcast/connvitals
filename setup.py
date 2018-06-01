@@ -52,7 +52,7 @@ setup(
 		'Topic :: Utilities',
 		'License :: OSI Approved :: Apache Software License',
 		'Environment :: Console',
-		'Operating Systems :: POSIX',
+		'Operating System :: OS Independent',
 		'Programming Language :: Python :: Implementation :: CPython',
 		'Programming Language :: Python :: Implementation :: PyPy'
 		'Programming Language :: Python :: 3 :: Only'
