@@ -3,7 +3,7 @@ connvitals
 
 |License|
 
-Checks a machines connection to a specific host or list of hosts in
+Checks a machine's connection to a specific host or list of hosts in
 terms of packet loss, icmp latency, routing, and anything else that
 winds up getting added.
 
@@ -19,6 +19,12 @@ Dependencies
 The utility runs on Python 3 (tested 3.6.3), but requires no
 non-standard external modules.
 
+However, in most cases you will need ``setuptools`` after installation,
+and if you are using an older version of Python (< 3.5) then you will
+need to install the backport of ``typing``. These should be handled for
+you if you are using an ``.rpm`` file or ``pip`` to install
+``connvitals``.
+
 Installation
 ------------
 
@@ -29,12 +35,26 @@ Binary packages are offered in ``.rpm`` format for Fedora/CentOS/RHEL
 and ``.whl`` format for all other operating systems under
 '`Releases <https://github.com/connvitals/releases>`__'.
 
-From This Repository with ``pip``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Via ``pip`` (standard)
+~~~~~~~~~~~~~~~~~~~~~~
 
-The easiest way to install is to simply use ``pip``. You can install
-directly from this repository without needing to manually download it by
-running
+By far the simplest way to install this package is to simply use ``pip``
+like so:
+
+::
+
+    pip install connvitals
+
+Note that it's likely you'll need to either run this command as an
+administrator (Windows), with ``sudo`` (Everything Else), or with the
+``--user`` option (Everything Including Windows).
+
+Via ``pip`` (From This Repository)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If for some reason the standard python package index is unavailable to
+you, you can install directly from this repository without needing to
+manually download it by running
 
 .. code:: bash
 

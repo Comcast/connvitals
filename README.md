@@ -1,7 +1,7 @@
 # connvitals
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-Checks a machines connection to a specific host or list of hosts in terms of packet loss, icmp latency, routing, and anything else that winds up getting added.
+Checks a machine's connection to a specific host or list of hosts in terms of packet loss, icmp latency, routing, and anything else that winds up getting added.
 
 *Note: Does not recognize duplicate hosts passed on `argv` and will test each as though unique.*
 
@@ -16,8 +16,15 @@ However, in most cases you will need `setuptools` after installation, and if you
 ### Binary packages
 Binary packages are offered in `.rpm` format for Fedora/CentOS/RHEL and `.whl` format for all other operating systems under '[Releases](https://github.com/connvitals/releases)'.
 
-### From This Repository with `pip`
-The easiest way to install is to simply use `pip`. You can install directly from this repository without needing to manually download it by running
+### Via `pip` (standard)
+By far the simplest way to install this package is to simply use `pip` like so:
+```
+pip install connvitals
+```
+Note that it's likely you'll need to either run this command as an administrator (Windows), with `sudo` (Everything Else), or with the `--user` option (Everything Including Windows).
+
+### Via `pip` (From This Repository)
+If for some reason the standard python package index is unavailable to you, you can install directly from this repository without needing to manually download it by running
 ```bash
 user@hostname ~ $ pip install git+https://github.com/connvitals.git#egg=connvitals
 ```
