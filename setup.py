@@ -28,11 +28,13 @@ from setuptools import setup
 # Connvitals needs to have a python3-prefix for rpm distributions (LEGACY - DEPRECATED)
 pkgname = "connvitals"
 if platform.linux_distribution(full_distribution_name=False)[0] in {'centos', 'fedora', 'redhat'}\
-   and "bdist_rpm" in sys.argv:
+   or "bdist_rpm" in sys.argv:
 
 	pkgname = "python3-"+pkgname
-	raise DeprecationWarning("The use of RPM packages is now deprecated, pip is the official,"\
-	                         " preferred install method.")
+	import warnings
+	warnings.simplefilter("always", category=DeprecationWarning)
+	warn = "The use of RPM packages is now deprecated, pip is the official, preferred install method."
+	warnings.warn(warn, category=DeprecationWarning)
 
 here = os.path.abspath(os.path.dirname(__file__))
 
