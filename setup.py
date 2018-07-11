@@ -18,6 +18,7 @@ The setuptools-based installer for connvitals
 """
 
 import os
+import sys
 
 # RPMs generated for fedora/rhel/centos need to have a different name
 # (debian/ubuntu automatically prepends python3-, but those do not)
@@ -30,12 +31,15 @@ if platform.linux_distribution(full_distribution_name=False)[0] in  {'centos', '
 
 here = os.path.abspath(os.path.dirname(__file__))
 
+sys.path.append(here)
+import connvitals
+
 with open(os.path.join(here, 'README.rst')) as f:
 	long_description = f.read()
 
 setup(
 	name=pkgname,
-	version='4.0.1',
+	version=connvitals.__version__,
 	description='Checks a machines connection to a specific host or list of hosts',
 	long_description=long_description,
 	url='https://github.com/connvitals',
