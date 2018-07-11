@@ -132,7 +132,8 @@ class Collector(multiprocessing.Process):
 			ret.append(str(pings))
 		if trace and trace != self.trace:
 			self.trace = trace
-			ret.append(str(trace))
+			# Dirty hack because I can't inherit with strong typing in Python 3.4
+			ret.append(utils.traceToStr(trace))
 		if scans:
 			ret.append(str(scans))
 
@@ -152,7 +153,8 @@ class Collector(multiprocessing.Process):
 
 		if config.TRACE and self.trace != self.result[1]:
 			self.trace = self.result[1]
-			ret.append(r'"trace":%s' % repr(self.result[1]))
+			# Dirty hack because I can't inherit with strong typing in Python 3.4
+			ret.append(r'"trace":%s' % utils.traceRepr(self.result[1]))
 
 		if config.PORTSCAN:
 			ret.append(r'"scan":%s' % repr(self.result[2]))
