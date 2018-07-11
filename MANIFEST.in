@@ -3,5 +3,5 @@ include LICENSE
 include NOTICE
 
 # README in reStructuredText format
-README.rst
+include README.rst
 
