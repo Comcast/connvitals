@@ -58,16 +58,24 @@ class Collector(multiprocessing.Process):
 					self.ping(pool)
 				except (multiprocessing.TimeoutError, ValueError):
 					self.result[0] = type(self).result[0]
+			else:
+				self.result[0] = None
+
 			if config.TRACE:
 				try:
 					self.result[1] = trace_result.get(config.HOPS)
 				except multiprocessing.TimeoutError:
 					self.result[1] = type(self).result[1]
+			else:
+				self.result[1] = None
+
 			if config.PORTSCAN:
 				try:
 					self.result[2] = pscan_result.get(0.5)
 				except multiprocessing.TimeoutError:
 					self.result[2] = type(self).result[2]
+			else:
+				self.result[2] = None
 
 			self.pipe[1].send(self.result)
 
