@@ -17,10 +17,7 @@ This module defines the config options for the 'connvitals' command
 """
 
 
-from . import utils
-
-# connvitals version
-__version__ = "4.0.1"
+from . import __version__, utils
 
 # Configuration values
 HOPS     = 30
