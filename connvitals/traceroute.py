@@ -20,23 +20,31 @@ import socket
 import time
 from . import utils, config
 
+# I'm looking at using port numbers to implement IDs for trace jobs
+currentPort = 0
+
 def trace(host: utils.Host) -> utils.Trace:
 	"""
 	Traces a route from the localhost to a given destination.
 	Returns a tabular list of network hops up to the maximum specfied by 'hops'
 	"""
+	global currentPort
+
+	myID = currentPort
+	currentPort += 1
 	ret = []
 
 	ipv6 = host[1] == socket.AF_INET6
 
-	receiver = socket.socket(family=host[1], type=socket.SOCK_RAW, proto=58 if ipv6 else 1)
+	receiver = socket.socket(family=host.family, type=socket.SOCK_RAW, proto=58 if ipv6 else 1)
 	receiver.settimeout(0.05)
-	sender = socket.socket(family=host[1], type=socket.SOCK_DGRAM, proto=17)
+	sender = socket.socket(family=host.family, type=socket.SOCK_DGRAM, proto=17)
 
 	# Sets up functions used in the main loop, so it can transparently
 	# handle ipv4 and ipv6 without needing to check which one we're
 	# using on every iteration.
 	setTTL, isTraceResponse, getIntendedDestination = None, None, None
+	getID = lambda x: (x[50] << 8 + x[51])
 	if ipv6:
 		setTTL = lambda x: sender.setsockopt(41, 4, x)
 		isTraceResponse = lambda x: x[0] in {1, 3}
@@ -51,7 +59,7 @@ def trace(host: utils.Host) -> utils.Trace:
 		timestamp = time.time()
 
 		try:
-			sender.sendto(b'', (host[0], 33440))
+			sender.sendto(b'', (host[0], myID))
 		except OSError as e:
 			ret.append(utils.TraceStep("*", -1))
 			continue
