@@ -41,10 +41,12 @@ def trace(host: utils.Host, myID: int, config: 'config.Config') -> utils.Trace:
 	setTTL, isTraceResponse, getIntendedDestination = None, None, None
 	getID = lambda x: (x[50] << 8) + x[51]
 	if ipv6:
+		seqno
 		setTTL = lambda x: sender.setsockopt(41, 4, x)
 		isTraceResponse = lambda x: x[0] in {1, 3}
 		getIntendedDestination = lambda x: socket.inet_ntop(socket.AF_INET6, x[32:48])
 	else:
+		seqno = lambda pkt: struct.unpack("!I", pkt[20:24])[0]
 		setTTL = lambda x: sender.setsockopt(socket.SOL_IP, socket.IP_TTL, x)
 		isTraceResponse = lambda x: x[20] in {11, 3}
 		getIntendedDestination = lambda x: ".".join(str(byte) for byte in x[44:48])

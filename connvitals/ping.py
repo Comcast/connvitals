@@ -22,85 +22,7 @@ import struct
 import time
 import sys
 from . import utils
-
-
-def calculate_checksum(pkt: bytes) -> bytes:
-	"""
-	Implementation of the "Internet Checksum" specified in
-	RFC 1071 (https://tools.ieft.org/html/rfc1071)
-
-	Ideally this would act on the string as a series of half-words in host byte order,
-	but this works.
-
-	Network data is big-endian, hosts are typically little-endian,
-	which makes this much more tedious than it needs to be.
-	"""
-
-	from sys import byteorder
-
-	countTo = len(pkt) // 2 * 2
-	total, count = 0, 0
-
-	# Handle bytes in pairs (decoding as short ints)
-	loByte, hiByte = 0, 0
-	while count < countTo:
-		if byteorder == "little":
-			loByte = pkt[count]
-			hiByte = pkt[count + 1]
-		else:
-			loByte = pkt[count + 1]
-			hiByte = pkt[count]
-		total += hiByte * 256 + loByte
-		count += 2
-
-	# Handle last byte if applicable (odd-number of bytes)
-	# Endianness should be irrelevant in this case
-	if countTo < len(pkt): # Check for odd length
-		total += pkt[len(pkt) - 1]
-
-	total &= 0xffffffff # Truncate sum to 32 bits (a variance from ping.c, which
-	                    # uses signed ints, but overflow is unlikely in ping)
-
-	total = (total >> 16) + (total & 0xffff)    # Add high 16 bits to low 16 bits
-	total += (total >> 16)                      # Add carry from above (if any)
-
-	return socket.htons((~total) & 0xffff)
-
-def IPv6_checksum(pkt: bytes, laddr: bytes, raddr: bytes) -> bytes:
-	"""
-	Implementation of the ICMPv6 "Internet Checksum" as specified in
-	RFC 1701 (https://tools.ieft.org/html/rfc1701).
-
-	This takes the Payload Length from the IPv6 layer to be 32 (0x20), since we
-	don't expect any extension headers and ICMP doesn't carry any length
-	information.
-		pkt: A complete ICMP packet, with the checksum field set to 0
-		laddr: The (fully-expanded) local address of the socket that will send pkt
-		raddr: The (fully-expanded) remote address of the host to which the pkt will be sent
-		returns: A bytes object representing the checksum
-	"""
-
-	# IPv6 Pseudo-Header used for checksum calculation as specified by
-	# RFC 2460 (https://tools.ieft.org/html/rfc2460)
-	psh = laddr + raddr + struct.pack("!I", len(pkt)) + b'\x00\x00\x00:'
-	# This last bit is the 4-byte-packed icmp6 protocol number (58 or 0xa3)
-
-
-	total, packet = 0, psh+pkt
-
-	# Sum all 2-byte words
-	num_words = len(packet) // 2
-	for chunk in struct.unpack("!%sH" % num_words, packet[0:num_words*2]):
-		total += chunk
-
-	# Add any left-over byte (for odd-length packets)
-	if len(packet) % 2:
-		total += ord(packet[-1]) << 8
-
-	# Fold 32-bits into 16-bits
-	total = (total >> 16) + (total & 0xffff)
-	total += total >> 16
-	return ~total + 0x10000 & 0xffff
+from . import icmp
 
 def icmpParse(pkt: bytes, ipv6: bool) -> int:
 	"""
@@ -142,6 +64,8 @@ class Pinger(object):
 			self.icmpParse = self._icmpv4Parse
 			self.mkPkt = self._mkPkt4
 
+		self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
 		self.sock.settimeout(2)
 		self.payload = payload
 
@@ -156,15 +80,16 @@ class Pinger(object):
 		Returns the round-trip time (in ms) between packet send and receipt
 		or 0 if packet was not received.
 		"""
-		pkt = self.mkPkt(seqno)
+		pkt = icmp.ICMPPkt(self.host, payload=struct.pack("!HH", 2, seqno))
 
 		# I set time here so that rtt includes the device latency
 		self.timestamps[seqno] = time.time()
 
 		try:
 			# ICMP has no notion of port numbers
-			self.sock.sendto(pkt, (self.host[0], 1))
+			self.sock.sendto(bytes(pkt), (self.host.addr, 1))
 		except Exception as e:
+			print(pkt, bytes(pkt), self.host.addr, seqno, sep='\n')
 			#Sometimes, when the network is unreachable this will erroneously report that there's an
 			#'invalid argument', which is impossible since the hostnames are coming straight from
 			#`socket` itself
