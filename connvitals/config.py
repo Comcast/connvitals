@@ -16,7 +16,7 @@
 This module defines the config options for the 'connvitals' command
 """
 
-
+import socket
 from . import __version__, utils
 
 # Configuration values
@@ -43,7 +43,7 @@ def init():
 	                    help="The host or hosts to check connection to. "\
 	                         "These can be ipv4 addresses, ipv6 addresses, fqdn's, "\
 	                         "or any combination thereof.",
-	                    nargs="+")
+	                    nargs="*")
 
 	parser.add_argument("-H", "--hops",
 	                    dest="hops",
@@ -93,6 +93,16 @@ def init():
 	if args.version:
 		print("python3-connvitals Version %s" % __version__)
 		exit(0)
+
+	# Before doing anything else, make sure we have permission to open raw sockets
+	try:
+		sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, proto=1)
+		sock.close()
+		del sock
+	except PermissionError:
+		from sys import argv
+		utils.error(PermissionError("You do not have the permissions necessary to run %s" % (argv[0],)))
+		utils.error("(Hint: try running as root or with `sudo`)", True)
 
 	HOPS     = args.hops
 	JSON     = args.json

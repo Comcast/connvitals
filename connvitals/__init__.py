@@ -28,7 +28,6 @@ Submodules:
 	ports:      Specifies functions for checking specific host ports for http(s) and MySQL servers
 
 """
-import socket
 
 __version__ = "4.0.2"
 __author__ = "Brennan Fieck"
@@ -39,17 +38,6 @@ def main() -> int:
 	Returns: Always 0 to indicate "Success", unless the utility terminates
 		prematurely with a fatal error.
 	"""
-
-	# Before doing anything else, make sure we have permission to open raw sockets
-	try:
-		sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, proto=1)
-		sock.close()
-		del sock
-	except PermissionError:
-		from .utils import error
-		from sys import argv
-		error(PermissionError("You do not have the permissions necessary to run %s" % (argv[0],)))
-		error("(Hint: try running as root or with `sudo`)", True)
 
 	from . import utils
 	from . import config
