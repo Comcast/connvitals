@@ -102,7 +102,7 @@ def init():
 	except PermissionError:
 		from sys import argv
 		utils.error(PermissionError("You do not have the permissions necessary to run %s" % (argv[0],)))
-		utils.error("(Hint: try running as root or with `sudo`)", True)
+		utils.error("(Hint: try running as root, with `capsh` or with `sudo`)", True)
 
 	HOPS     = args.hops
 	JSON     = args.json
