@@ -27,7 +27,7 @@ class Collector(multiprocessing.Process):
 	          utils.Trace([utils.TraceStep('*', -1)] * 10),
 	          utils.ScanResult(None, None, None)]
 
-	def __init__(self, host: str):
+	def __init__(self, host: str, ID: int):
 		"""
 		Initializes the Collector, and its worker pool
 		"""
@@ -36,6 +36,7 @@ class Collector(multiprocessing.Process):
 		self.hostname = host
 		self.host = config.HOSTS[host]
 		self.name = host
+		self.ID = ID
 
 		self.pipe = multiprocessing.Pipe()
 
@@ -51,7 +52,7 @@ class Collector(multiprocessing.Process):
 													 error_callback=utils.error)
 			if config.TRACE:
 				trace_result = pool.apply_async(traceroute.trace,
-													 (self.host,),
+													 (self.host, self.ID),
 													 error_callback=utils.error)
 			if not config.NOPING:
 				try:

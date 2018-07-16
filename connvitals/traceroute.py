@@ -17,21 +17,16 @@ This module defines a single function which implements route tracing.
 """
 
 import socket
+import struct
 import time
 from . import utils, config
 
-# I'm looking at using port numbers to implement IDs for trace jobs
-currentPort = 0
-
-def trace(host: utils.Host) -> utils.Trace:
+def trace(host: utils.Host, myID: int) -> utils.Trace:
 	"""
 	Traces a route from the localhost to a given destination.
 	Returns a tabular list of network hops up to the maximum specfied by 'hops'
 	"""
-	global currentPort
 
-	myID = currentPort
-	currentPort += 1
 	ret = []
 
 	ipv6 = host[1] == socket.AF_INET6
@@ -44,7 +39,7 @@ def trace(host: utils.Host) -> utils.Trace:
 	# handle ipv4 and ipv6 without needing to check which one we're
 	# using on every iteration.
 	setTTL, isTraceResponse, getIntendedDestination = None, None, None
-	getID = lambda x: (x[50] << 8 + x[51])
+	getID = lambda x: (x[50] << 8) + x[51]
 	if ipv6:
 		setTTL = lambda x: sender.setsockopt(41, 4, x)
 		isTraceResponse = lambda x: x[0] in {1, 3}
@@ -75,11 +70,12 @@ def trace(host: utils.Host) -> utils.Trace:
 				# packet must belong to us.
 				if isTraceResponse(pkt):
 					destination = getIntendedDestination(pkt)
-					if destination == host[0]:
+					if destination == host.addr and getID(pkt) == myID:
 						break
 
 		except socket.timeout:
-			ret.append(utils.TraceStep("*", -1))
+			ret.append(utils.TraceStep("*", -1)),
+			# print("timeout")
 			done = False
 		else:
 			ret.append(utils.TraceStep(addr[0], rtt*1000))

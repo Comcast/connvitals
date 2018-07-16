@@ -61,7 +61,7 @@ def main() -> int:
 	if not config.HOSTS:
 		utils.error("No hosts could be parsed! Exiting...", True)
 
-	collectors = [collector.Collector(host) for host in config.HOSTS]
+	collectors = [collector.Collector(host,i+1) for i,host in enumerate(config.HOSTS)]
 
 	# Start all the collectors
 	for collect in collectors:
