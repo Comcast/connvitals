@@ -134,7 +134,7 @@ def init():
 	# Parse the list of hosts and try to find valid addresses for each
 	CONFIG.HOSTS = {}
 
-	for host in hosts:
+	for host in args.hosts:
 		info = utils.getaddr(host)
 		if not info:
 			utils.error("Unable to resolve host ( %s )" % host)

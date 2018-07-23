@@ -39,17 +39,18 @@ def main() -> int:
 		prematurely with a fatal error.
 	"""
 
-	from . import utils
 	from . import config
-	from . import collector
 
 	config.init()
 
 	# No hosts could be parsed
-	if not config.HOSTS:
+	if not config.CONFIG or not config.CONFIG.HOSTS:
+		from . import utils
 		utils.error("No hosts could be parsed! Exiting...", True)
 
-	collectors = [collector.Collector(host,i+1) for i,host in enumerate(config.HOSTS)]
+	from . import collector
+
+	collectors = [collector.Collector(host,i+1) for i,host in enumerate(config.CONFIG.HOSTS)]
 
 	# Start all the collectors
 	for collect in collectors:
@@ -57,19 +58,10 @@ def main() -> int:
 
 	# Wait for every collector to finish
 	# Print JSON if requested
-	if config.JSON:
-		for collect in collectors:
-			_ = collect.join()
-			collect.result = collect.recv()
-			print(repr(collect))
-
-	# ... else print plaintext
-	else:
-		for collect in collectors:
-			_ = collect.join()
-			collect.result = collect.recv()
-			print(collect)
-
+	for collect in collectors:
+		_ = collect.join()
+		collect.result = collect.recv()
+		print(repr(collect) if collect.conf.JSON else collect)
 
 	# Errors will be indicated on stdout; because we query multiple hosts, as
 	# long as the main routine doesn't crash, we have exited successfully.
