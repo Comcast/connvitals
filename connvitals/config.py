@@ -20,20 +20,39 @@ import socket
 from . import __version__, utils
 
 # Configuration values
-HOPS     = 30
-JSON     = False
-PAYLOAD  = b'The very model of a modern Major General.'
-TRACE    = False
-NOPING   = False
-PORTSCAN = False
-NUMPINGS = 10
-HOSTS    = {}
+
+class Config():
+	"""
+	Represents a configuration.
+	"""
+
+	def __init__(self,*,HOPS     = 30,
+	                    JSON     = False,
+	                    PAYLOAD  = b'The very model of a modern Major General.',
+	                    TRACE    = False,
+	                    NOPING   = False,
+	                    PORTSCAN = False,
+	                    NUMPINGS = 10,
+	                    HOSTS    = None):
+		"""
+		Initializes a configuration
+		"""
+		self.HOPS     = HOPS
+		self.JSON     = JSON
+		self.PAYLOAD  = PAYLOAD
+		self.TRACE    = TRACE
+		self.NOPING   = NOPING
+		self.PORTSCAN = PORTSCAN
+		self.NUMPINGS = NUMPINGS
+		self.HOSTS    = HOSTS if HOSTS is not None else {}
+
+CONFIG = None
 
 def init():
 	"""
 	Initializes the configuration.
 	"""
-	global HOPS, JSON, PAYLOAD, TRACE, NOPING, PORTSCAN, NUMPINGS, HOSTS, __version__
+	global __version__, CONFIG
 
 	from argparse import ArgumentParser as Parser
 	parser = Parser(description="A utility to check connection vitals with a remote host.",
@@ -104,21 +123,20 @@ def init():
 		utils.error(PermissionError("You do not have the permissions necessary to run %s" % (argv[0],)))
 		utils.error("(Hint: try running as root, with `capsh` or with `sudo`)", True)
 
-	HOPS     = args.hops
-	JSON     = args.json
-	PAYLOAD  = args.payload
-	TRACE    = args.trace
-	NOPING   = args.noping
-	PORTSCAN = args.portscan
-	NUMPINGS = args.numpings
-	hosts    = args.hosts
+	CONFIG = Config(HOPS     = args.hops,
+	                JSON     = args.json,
+	                PAYLOAD  = args.payload,
+	                TRACE    = args.trace,
+	                NOPING   = args.noping,
+	                PORTSCAN = args.portscan,
+	                NUMPINGS = args.numpings)
 
 	# Parse the list of hosts and try to find valid addresses for each
-	HOSTS = {}
+	CONFIG.HOSTS = {}
 
 	for host in hosts:
 		info = utils.getaddr(host)
 		if not info:
 			utils.error("Unable to resolve host ( %s )" % host)
 		else:
-			HOSTS[host] = info
+			CONFIG.HOSTS[host] = info

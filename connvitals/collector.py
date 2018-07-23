@@ -27,14 +27,15 @@ class Collector(multiprocessing.Process):
 	          utils.Trace([utils.TraceStep('*', -1)] * 10),
 	          utils.ScanResult(None, None, None)]
 
-	def __init__(self, host: str, ID: int):
+	def __init__(self, host:str, ID:int, conf:config.Config = config.CONFIG):
 		"""
 		Initializes the Collector, and its worker pool
 		"""
 		super(Collector, self).__init__()
 
 		self.hostname = host
-		self.host = config.HOSTS[host]
+		self.conf = conf
+		self.host = conf.HOSTS[host]
 		self.name = host
 		self.ID = ID
 
@@ -46,15 +47,15 @@ class Collector(multiprocessing.Process):
 		"""
 		with multiprocessing.pool.ThreadPool() as pool:
 			pscan_result, trace_result, ping_result = None, None, None
-			if config.PORTSCAN:
+			if self.conf.PORTSCAN:
 				pscan_result = pool.apply_async(ports.portScan,
 													 (self.host, pool),
 													 error_callback=utils.error)
-			if config.TRACE:
+			if self.conf.TRACE:
 				trace_result = pool.apply_async(traceroute.trace,
-													 (self.host, self.ID),
+													 (self.host, self.ID, self.conf),
 													 error_callback=utils.error)
-			if not config.NOPING:
+			if not self.conf.NOPING:
 				try:
 					self.ping(pool)
 				except (multiprocessing.TimeoutError, ValueError):
@@ -62,15 +63,15 @@ class Collector(multiprocessing.Process):
 			else:
 				self.result[0] = None
 
-			if config.TRACE:
+			if self.conf.TRACE:
 				try:
-					self.result[1] = trace_result.get(config.HOPS)
+					self.result[1] = trace_result.get(self.conf.HOPS)
 				except multiprocessing.TimeoutError:
 					self.result[1] = type(self).result[1]
 			else:
 				self.result[1] = None
 
-			if config.PORTSCAN:
+			if self.conf.PORTSCAN:
 				try:
 					self.result[2] = pscan_result.get(0.5)
 				except multiprocessing.TimeoutError:
@@ -84,14 +85,14 @@ class Collector(multiprocessing.Process):
 		"""
 		Pings the host
 		"""
-		pinger = ping.Pinger(self.host, bytes(config.PAYLOAD))
+		pinger = ping.Pinger(self.host, bytes(self.conf.PAYLOAD))
 
 		# Aggregates round-trip time for each packet in the sequence
 		rtt, lost = [], 0
 
 		# Sends, receives and parses all icmp packets asynchronously
 		results = pool.map_async(pinger.ping,
-		                              range(config.NUMPINGS),
+		                              range(self.conf.NUMPINGS),
 		                              error_callback=utils.error)
 		pkts = results.get(8)
 		pinger.sock.close()
@@ -113,7 +114,7 @@ class Collector(multiprocessing.Process):
 		except ZeroDivisionError:
 			std = 0.
 
-		self.result[0] = utils.PingResult(min(rtt), avg, max(rtt), std, lost/config.NUMPINGS *100.0)
+		self.result[0] = utils.PingResult(min(rtt), avg, max(rtt), std, lost/self.conf.NUMPINGS *100.0)
 
 	def __str__(self) -> str:
 		"""
@@ -149,15 +150,15 @@ class Collector(multiprocessing.Process):
 		ret = [r'{"addr":"%s"' % self.host[0]]
 		ret.append(r'"name":"%s"' % self.hostname)
 
-		if not config.NOPING:
+		if not self.conf.NOPING:
 			ret.append(r'"ping":%s' % repr(self.result[0]))
 
-		if config.TRACE and self.trace != self.result[1]:
+		if self.conf.TRACE and self.trace != self.result[1]:
 			self.trace = self.result[1]
 			# Dirty hack because I can't inherit with strong typing in Python 3.4
 			ret.append(r'"trace":%s' % utils.traceRepr(self.result[1]))
 
-		if config.PORTSCAN:
+		if self.conf.PORTSCAN:
 			ret.append(r'"scan":%s' % repr(self.result[2]))
 
 		return ','.join(ret) + '}'

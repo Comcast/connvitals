@@ -19,9 +19,9 @@ This module defines a single function which implements route tracing.
 import socket
 import struct
 import time
-from . import utils, config
+from . import utils
 
-def trace(host: utils.Host, myID: int) -> utils.Trace:
+def trace(host: utils.Host, myID: int, config: 'config.Config') -> utils.Trace:
 	"""
 	Traces a route from the localhost to a given destination.
 	Returns a tabular list of network hops up to the maximum specfied by 'hops'
