@@ -62,7 +62,7 @@ class Scanner():
 		# shouldn't persist, because there's no mysql 'NOOP' to my knowledge).
 		try:
 			self.socks[0].connect((self.host.addr, 80))
-		except ConnectionRefusedError:
+		except (ConnectionRefusedError, socket.timeout, socket.gaierror):
 			utils.warn("Connection Refused by %s on port 80" % self.host.addr)
 			self.socks[0].close()
 
@@ -71,7 +71,7 @@ class Scanner():
 		except ssl.SSLError as e:
 			utils.warn("SSL handshake with %s failed: %s" % (url[0], e))
 			self.socks[1].close()
-		except ConnectionRefusedError:
+		except (ConnectionRefusedError, socket.timeout, socket.gaierror):
 			utils.warn("Connection Refused by %s on port 443" % self.host.addr)
 			self.socks[1].close()
 
