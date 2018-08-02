@@ -15,7 +15,6 @@
 """
 This module defines a single function which implements route tracing.
 """
-
 import socket
 import struct
 from struct import unpack
@@ -36,6 +35,7 @@ class Tracer():
 		integer instead of a whole `Config` object to determine `maxHops`.
 		"""
 		self.host = host
+		self.ID = ID
 		self.maxHops = maxHops
 
 		# A bunch of stuff needs to be tweaked if we're using IPv6
@@ -45,22 +45,23 @@ class Tracer():
 			# `connvitals`. One of these days, I'll have to implement it using
 			# raw ethernet frames ...
 
-			self.sender = socket.socket(family=host.family,
-			                            type=socket.SOCK_RAW,
-			                            proto=socket.IPPROTO_ICMPV6)
+			self.receiver = socket.socket(family=host.family,
+			                              type=socket.SOCK_RAW,
+			                              proto=socket.IPPROTO_ICMPV6)
 			self.setTTL = self.setIPv6TTL
 			self.isMyTraceResponse = self.isMyIPv6TraceResponse
 
 		else:
-			self.sender = socket.socket(family=host.family,
-			                            type=socket.SOCK_RAW,
-			                            proto=socket.IPPROTO_ICMP)
+			self.receiver = socket.socket(family=host.family,
+			                              type=socket.SOCK_RAW,
+			                              proto=socket.IPPROTO_ICMP)
 
-		# We need a receiver because a UDP socket can't receive ICMP 'TTL
+		# We need a sender because a UDP socket can't receive ICMP 'TTL
 		# Exceeded In Transit' packets, and having a raw sender introduces
 		# a slew of new issues.
-		self.receiver = socket.socket(family=host.family,
-		                              type=socket.SOCK_DGRAM)
+		self.sender = socket.socket(family=host.family,
+		                            type=socket.SOCK_DGRAM)
+		self.receiver.settimeout(0.05)
 
 	def __enter__(self) -> 'Tracer':
 		"""
@@ -79,7 +80,7 @@ class Tracer():
 
 		# Print exception information if possible
 		if exc_type and exc_value:
-			utils.error("Unknown error occurred in route trace")
+			utils.error(exc_type("Unknown error occurred in route trace"))
 			utils.error(exc_type(exc_value))
 			if traceback:
 				utils.warn("Stack Trace for route trace error: %s" % traceback)
@@ -108,13 +109,13 @@ class Tracer():
 			rtt = time()
 
 			try:
-				sender.sendto(b'', (self.host.addr, self.ID))
+				self.sender.sendto(b'', (self.host.addr, self.ID))
 			except OSError:
 				ret.append(utils.TraceStep("*", -1))
 
 			try:
 				while True:
-					pkt, addr = receiver.recvfrom(1024)
+					pkt, addr = self.receiver.recvfrom(1024)
 					rtt = time() - rtt
 
 					if self.isMyTraceResponse(pkt):
@@ -220,7 +221,6 @@ def trace(host: utils.Host, myID: int, config: 'config.Config') -> utils.Trace:
 
 		except socket.timeout:
 			ret.append(utils.TraceStep("*", -1)),
-			# print("timeout")
 			done = False
 		else:
 			ret.append(utils.TraceStep(addr[0], rtt*1000))
