@@ -57,7 +57,7 @@ class Scanner():
 			sock.settimeout(0.08)
 
 
-		# When HTTP connections fail, close them immediately. The individual
+		# When HTTP(S) connections fail, close them immediately. The individual
 		# scanners will re-attempt the connection (mysql server connections)
 		# shouldn't persist, because there's no mysql 'NOOP' to my knowledge).
 		try:
@@ -68,6 +68,9 @@ class Scanner():
 
 		try:
 			self.socks[1].connect((self.host.addr, 443))
+		except ssl.SSLError as e:
+			utils.warn("SSL handshake with %s failed: %s" % (url[0], e))
+			self.socks[1].close()
 		except ConnectionRefusedError:
 			utils.warn("Connection Refused by %s on port 443" % self.host.addr)
 			self.socks[1].close()
