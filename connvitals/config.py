@@ -103,15 +103,10 @@ def init():
 	                    action="store_true")
 
 	parser.add_argument("-V", "--version",
-	                    dest="version",
-	                    help="Print the program's version, then exit.",
-	                    action="store_true")
+	                    action="version",
+	                    version="%(prog)s "+__version__)
 
 	args = parser.parse_args()
-
-	if args.version:
-		print("python3-connvitals Version %s" % __version__)
-		exit(0)
 
 	# Before doing anything else, make sure we have permission to open raw sockets
 	try:

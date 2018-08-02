@@ -31,8 +31,196 @@ class Scanner():
 	do port scans.
 	"""
 
+	# Message constant - so it doesn't need to be re-allocated at runtime.
+	HTTP_MSG = b'HEAD / HTTP/1.1\r\n\r\n'
+
+
 	def __init__(self, host:utils.Host):
-		pass
+		"""
+		Sets up this scanner, including opening three sockets for
+		scanning.
+		"""
+
+		# Sets up three TCP sockets, each with a dedicated message
+		# buffer - 1 to check http port, 1 to check https
+		# port and 1 to check mysql default port.
+		self.socks, self.buffers = [], []
+		for _ in range(3):
+			sock = socket.socket(family=host.family)
+			sock.settimeout(0.08)
+			self.socks.append(sock)
+			self.buffers.append(bytearray(1024))
+
+
+		# Special wrapper for an https socket
+		self.socks[1] = ssl.wrap_socket(sock, ssl_version=3)
+
+	def __enter__(self, host:utils.Host) -> 'Scanner':
+		"""
+		Context-managed `Scanner` object.
+		"""
+		self.socks = []
+		for _ in range(3):
+			sock = socket.socket(family=host.family)
+			sock.settimeout(0.08)
+			self.socks.append(sock)
+
+		return self
+
+	def __exit__(self):
+		"""
+		Context-cleanup for `Scanner` object.
+		"""
+		for sock in self.socks:
+			sock.shutdown(socket.SHUT_RDWR)
+			sock.close()
+
+	def __del__(self):
+		"""
+		Non-context-managed cleanup.
+		"""
+		if self.socks:
+			for sock in self.socks:
+				sock.close()
+
+
+	def scan(self, pool:typing.Union[multiprocessing.pool.Pool, bool] = None) -> utils.ScanResult:
+		"""
+		Performs a full portscan of the host, and returns a format-able result.
+
+		If the `pool` argument is given, it should be either a usable
+		`multiprocessing.pool.Pool` ancestor (i.e. ThreadPool or Pool), or a
+		boolean. If `pool` is literally `True`, a new ThreadPool will be
+		created to perform the scan.
+
+		If `pool` is `None`, each scan is done sequentially.
+		"""
+		if pool:
+			if pool is True:
+				with multiprocessing.pool.ThreadPool(3) as p:
+					httpresult = p.apply_async(self.http, ())
+					httpsresult = p.apply_async(self.https, ())
+					mysqlresult = p.apply_async(self.mysql, ())
+
+					return utils.ScanResult(httpresult.get(), httpsresult.get(), mysqlresult.get())
+
+			httpresult = pool.apply_async(self.http, ())
+			httpsresult = pool.apply_async(self.https, ())
+			mysqlresult = pool.apply_async(self.mysql, ())
+
+			return utils.ScanResult(httpresult.get(), httpsresult.get(), mysqlresult.get())
+
+		return utils.ScanResult(self.http(), self.https(), self.myslq())
+
+	def http(self) -> typing.Optional[typing.Tuple[float, str, str]]:
+		"""
+		Checks for http content on port 80.
+
+		This uses a HEAD / HTTP/1.1 request, and returns a tuple containing
+		the total latency, the server's status code and reason, and the server's
+		name/version (if found in the first kilobyte of data).
+		"""
+
+		s = self.socks[0]
+		try:
+			rtt = time.time()
+			s.connect((self.host.addr, 80)) # Can't frontload this to an initializer
+			s.send(self.HTTP_MSG)
+			_ = s.recv_into(self.buffers[0])
+			rtt = time.time() - rtt
+		except (OSError, ConnectionRefusedError, socket.gaierror, socket.timeout) as e:
+			utils.warn("Could not connect to %s:80 - %s" % (self.host.addr, e))
+			return None
+
+		if not self.buffers[0]:
+			return None
+
+		status = self.buffers[0][9:12].decode()
+
+		try:
+			srv = self.buffers[0].index(b'Server: ')
+			srv = self.buffers[0][srv+8:self.buffers[0].index(b'\r', srv)].decode()
+		except ValueError:
+			# Server header not found
+			return rtt*1000, status, "Unkown"
+		else:
+			return rtt*1000, status, srv
+		finally:
+			# Creating a new buffer is faster than clearing the old one
+			self.buffers[0] = bytearray(1024)
+
+	def https(self) -> typing.Optional[typing.Tuple[float, str, str]]:
+		"""
+		Checks for http content on port 433.
+
+		This uses a HEAD / HTTP/1.1 request, and returns a tuple containing
+		the total latency, the server's status code and reason, and the server's
+		name/version (if found in the first kilobyte of data).
+
+		Note that this is principally the same as `self.http`, but in the interest
+		of favoring time optimization (no conditional branching, fewer dereferences)
+		over space optimization the process is repeated nearly verbatim.
+		"""
+
+		s = self.socks[1]
+		try:
+			rtt = time.time()
+			s.connect((self.host.addr, 443)) # Can't frontload this to an initializer
+			s.send(self.HTTP_MSG)
+			_ = s.recv_into(self.buffers[1])
+			rtt = time.time() - rtt
+		except (OSError, ConnectionRefusedError, socket.gaierror, socket.timeout) as e:
+			utils.warn("Could not connect to %s:443 - %s" % (self.host.addr, e))
+			return None
+
+		if not self.buffers[1]:
+			return None
+
+		status = self.buffers[1][9:12].decode()
+
+		try:
+			srv = self.buffers[1].index(b'Server: ')
+			srv = self.buffers[1][srv+8:self.buffers[1].index(b'\r', srv)].decode()
+		except ValueError:
+			# Server header not found
+			return rtt*1000, status, "Unkown"
+		else:
+			return rtt*1000, status, srv
+		finally:
+			# Creating a new buffer is faster than clearing the old one
+			self.buffers[1] = bytearray(1024)
+
+	def mysql(url: utils.Host) -> typing.Optional[typing.Tuple[float, str]]:
+		"""
+		Checks for a MySQL server running on port 3306.
+
+		Returns a tuple containing the total latency and the server version if one is found.
+		"""
+
+		s = self.socks[2]
+		try:
+			rtt = time.time()
+			s.connect((self.host.addr, 3306))
+			_ = s.recv_into(self.buffers[2])
+			return (time.time() - rtt)* 1000, sock.recv(1000)[5:10].decode()
+		except (UnicodeError, OSError, ConnectionRefusedError, socket.gaierror, socket.timeout) as e:
+			utils.warn("Could not connect to %s:3306 - %s" % (self.host.addr, e))
+			return None
+		else:
+			rtt = (time.time() - rtt)*1000
+			try:
+				return rtt, self.buffers[2][5:10].decode()
+			except UnicodeError:
+				utils.warn("Server at %s:3306 doesn't appear to be mysql." % self.host.addr)
+				return rtt, "Unknown"
+
+		finally:
+			# Creating a new buffer is faster than clearing the old one
+			self.buffers[2] = bytearray(1024)
+
+
+# Functional implementation provided for convenience/legacy support
+
 
 def http(url: utils.Host, port: int=80) -> typing.Optional[typing.Tuple[float, str, str]]:
 	"""

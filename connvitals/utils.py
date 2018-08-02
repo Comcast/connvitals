@@ -24,7 +24,8 @@ import socket
 # I don't know why, but pylint seems to think that socket.AddressFamily isn't real, but it is.
 # Nobody else has this issue as far as I could find.
 #pylint: disable=E1101
-Host = typing.NamedTuple("Host", [('addr', str), ('family', socket.AddressFamily), (name, str)])
+# Host = typing.NamedTuple("Host", [('addr', str), ('family', socket.AddressFamily), (name, str)])
+Host = typing.NamedTuple("Host", [('addr', str), ('family', socket.AddressFamily)])
 #pylint: enable=E1101
 
 PingResult = typing.NamedTuple("PingResult", [
