@@ -206,6 +206,9 @@ class Scanner():
 			s.send(self.HTTP_MSG)
 			_ = s.recv_into(self.buffers[1])
 			rtt = time.time() - rtt
+		except ssl.SSLError as e:
+			utils.warn("SSL handshake with %s failed: %s" % (url[0], e))
+			return None
 
 		except OSError:
 			# Possibly the connection was closed; try to re-open.
@@ -218,6 +221,9 @@ class Scanner():
 				self.socks[1].send(self.HTTP_MSG)
 				_ = self.socks[1].recv_into(self.buffers[1])
 				rtt = time.time() - rtt
+			except ssl.SSLError as e:
+				utils.warn("SSL handshake with %s failed: %s" % (url[0], e))
+				return None
 
 			except (OSError, socket.gaierror, socket.timeout) as e:
 				# If this happens, the server likely went down
