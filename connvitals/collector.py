@@ -91,7 +91,7 @@ class Collector(multiprocessing.Process):
 		destroyPinger = dummy
 		if pinger is None:
 			pinger = ping.Pinger(self.host, bytes(self.conf.PAYLOAD))
-			destroyPinger = lambda x: x.close()
+			destroyPinger = lambda x: x.sock.close()
 
 		# Aggregates round-trip time for each packet in the sequence
 		rtt, lost = [], 0
