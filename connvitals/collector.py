@@ -18,6 +18,9 @@ import multiprocessing
 import math
 from . import utils, config, ping, traceroute, ports
 
+def dummy(_):
+	pass
+
 class Collector(multiprocessing.Process):
 	"""
 	A threaded worker that collects stats for a single host.
@@ -81,11 +84,14 @@ class Collector(multiprocessing.Process):
 
 			self.pipe[1].send(self.result)
 
-	def ping(self, pool: multiprocessing.pool.ThreadPool):
+	def ping(self, pool:multiprocessing.pool.ThreadPool, pinger:ping.Pinger = None):
 		"""
 		Pings the host
 		"""
-		pinger = ping.Pinger(self.host, bytes(self.conf.PAYLOAD))
+		destroyPinger = dummy
+		if pinger is None:
+			pinger = ping.Pinger(self.host, bytes(self.conf.PAYLOAD))
+			destroyPinger = lambda x: x.close()
 
 		# Aggregates round-trip time for each packet in the sequence
 		rtt, lost = [], 0
@@ -95,8 +101,6 @@ class Collector(multiprocessing.Process):
 		                              range(self.conf.NUMPINGS),
 		                              error_callback=utils.error)
 		pkts = results.get(8)
-		pinger.sock.close()
-		del pinger
 
 		for pkt in pkts:
 			if pkt != None and pkt > 0:
@@ -113,8 +117,11 @@ class Collector(multiprocessing.Process):
 			std = math.sqrt(std)
 		except ZeroDivisionError:
 			std = 0.
+		finally:
+			destroyPinger(pinger)
 
 		self.result[0] = utils.PingResult(min(rtt), avg, max(rtt), std, lost/self.conf.NUMPINGS *100.0)
+
 
 	def __str__(self) -> str:
 		"""
@@ -162,6 +169,7 @@ class Collector(multiprocessing.Process):
 			ret.append(r'"scan":%s' % repr(self.result[2]))
 
 		return ','.join(ret) + '}'
+
 
 	def recv(self):
 		"""
