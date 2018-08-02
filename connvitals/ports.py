@@ -25,6 +25,15 @@ import typing
 import ssl
 from . import utils
 
+class Scanner():
+	"""
+	Holds persistent information that can be used to repeatedly
+	do port scans.
+	"""
+
+	def __init__(self, host:utils.Host):
+		pass
+
 def http(url: utils.Host, port: int=80) -> typing.Optional[typing.Tuple[float, str, str]]:
 	"""
 	Checks for http content being served by url on a port passed in ssl.
