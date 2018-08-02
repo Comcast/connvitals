@@ -32,7 +32,7 @@ class Scanner():
 	"""
 
 	# Message constant - so it doesn't need to be re-allocated at runtime.
-	HTTP_MSG = b'HEAD / HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\n\r\n'
+	HTTP_MSG = b'HEAD / HTTP/1.1\r\nConnection: Keep-Alive\r\nHost: '
 
 
 	def __init__(self, host:utils.Host):
@@ -42,7 +42,7 @@ class Scanner():
 		"""
 
 		self.host = host
-		self.HTTP_MSG %= self.host.addr.encode()
+		self.HTTP_MSG += self.host.addr.encode() + b'\r\n\r\n'
 
 		# Sets up two TCP sockets, each with a dedicated message
 		# buffer - 1 to check the http port, and 1 to check the
