@@ -32,7 +32,7 @@ class Scanner():
 	"""
 
 	# Message constant - so it doesn't need to be re-allocated at runtime.
-	HTTP_MSG = b'HEAD / HTTP/1.1\r\n\r\n'
+	HTTP_MSG = b'HEAD / HTTP/1.1\r\nHost: %s\r\nConnection: Keep-Alive\r\n\r\n'
 
 
 	def __init__(self, host:utils.Host):
@@ -41,33 +41,46 @@ class Scanner():
 		scanning.
 		"""
 
-		# Sets up three TCP sockets, each with a dedicated message
-		# buffer - 1 to check http port, 1 to check https
-		# port and 1 to check mysql default port.
-		self.socks, self.buffers = [], []
-		for _ in range(3):
-			sock = socket.socket(family=host.family)
+		self.host = host
+		self.HTTP_MSG %= self.host.addr.encode()
+
+		# Sets up two TCP sockets, each with a dedicated message
+		# buffer - 1 to check the http port, and 1 to check the
+		# https port.
+		self.buffers = [bytearray(1024), bytearray(1024)]
+		self.socks = [
+		                 socket.socket(family=host.family),
+		                 ssl.wrap_socket(socket.socket(family=host.family), ssl_version=3),
+		             ]
+
+		for sock in self.socks:
 			sock.settimeout(0.08)
-			self.socks.append(sock)
-			self.buffers.append(bytearray(1024))
 
 
-		# Special wrapper for an https socket
-		self.socks[1] = ssl.wrap_socket(sock, ssl_version=3)
+		# When HTTP connections fail, close them immediately. The individual
+		# scanners will re-attempt the connection (mysql server connections)
+		# shouldn't persist, because there's no mysql 'NOOP' to my knowledge).
+		try:
+			self.socks[0].connect((self.host.addr, 80))
+		except ConnectionRefusedError:
+			utils.warn("Connection Refused by %s on port 80" % self.host.addr)
+			self.socks[0].close()
 
-	def __enter__(self, host:utils.Host) -> 'Scanner':
+		try:
+			self.socks[1].connect((self.host.addr, 443))
+		except ConnectionRefusedError:
+			utils.warn("Connection Refused by %s on port 443" % self.host.addr)
+			self.socks[1].close()
+
+
+	def __enter__(self) -> 'Scanner':
 		"""
 		Context-managed `Scanner` object.
 		"""
-		self.socks = []
-		for _ in range(3):
-			sock = socket.socket(family=host.family)
-			sock.settimeout(0.08)
-			self.socks.append(sock)
 
 		return self
 
-	def __exit__(self):
+	def __exit__(self, exc_type, exc_value, traceback):
 		"""
 		Context-cleanup for `Scanner` object.
 		"""
@@ -75,13 +88,20 @@ class Scanner():
 			sock.shutdown(socket.SHUT_RDWR)
 			sock.close()
 
+		if exc_type and exc_value:
+			utils.error("Unknown error occurred (Traceback: %s)" % traceback)
+			utils.error(exc_type(exc_value), True)
+
 	def __del__(self):
 		"""
 		Non-context-managed cleanup.
 		"""
-		if self.socks:
+		try:
 			for sock in self.socks:
 				sock.close()
+		except AttributeError:
+			# Context-management handled the sockets already
+			pass
 
 
 	def scan(self, pool:typing.Union[multiprocessing.pool.Pool, bool] = None) -> utils.ScanResult:
@@ -110,7 +130,7 @@ class Scanner():
 
 			return utils.ScanResult(httpresult.get(), httpsresult.get(), mysqlresult.get())
 
-		return utils.ScanResult(self.http(), self.https(), self.myslq())
+		return utils.ScanResult(self.http(), self.https(), self.mysql())
 
 	def http(self) -> typing.Optional[typing.Tuple[float, str, str]]:
 		"""
@@ -122,13 +142,31 @@ class Scanner():
 		"""
 
 		s = self.socks[0]
+
 		try:
 			rtt = time.time()
-			s.connect((self.host.addr, 80)) # Can't frontload this to an initializer
 			s.send(self.HTTP_MSG)
 			_ = s.recv_into(self.buffers[0])
 			rtt = time.time() - rtt
-		except (OSError, ConnectionRefusedError, socket.gaierror, socket.timeout) as e:
+
+		except OSError:
+			# Possibly the connection was closed; try to re-open.
+			try:
+				self.socks[0].close()
+				self.socks[0] = socket.socket(family=self.host.family)
+				self.socks[0].settimeout(0.08)
+				self.socks[0].connect((self.host.addr, 80))
+				rtt = time.time()
+				self.socks[0].send(self.HTTP_MSG)
+				_ = self.socks[0].recv_into(self.buffers[0])
+				rtt = time.time() - rtt
+
+			except (OSError, socket.gaierror, socket.timeout) as e:
+				# If this happens, the server likely went down
+				utils.warn("Could not connect to %s:80 - %s" % (self.host.addr, e))
+				return None
+
+		except (socket.gaierror, socket.timeout) as e:
 			utils.warn("Could not connect to %s:80 - %s" % (self.host.addr, e))
 			return None
 
@@ -165,11 +203,28 @@ class Scanner():
 		s = self.socks[1]
 		try:
 			rtt = time.time()
-			s.connect((self.host.addr, 443)) # Can't frontload this to an initializer
 			s.send(self.HTTP_MSG)
 			_ = s.recv_into(self.buffers[1])
 			rtt = time.time() - rtt
-		except (OSError, ConnectionRefusedError, socket.gaierror, socket.timeout) as e:
+
+		except OSError:
+			# Possibly the connection was closed; try to re-open.
+			try:
+				self.socks[1].close()
+				self.socks[1] = ssl.wrap_socket(socket.socket(family=self.host.family), ssl_version=3)
+				self.socks[1].settimeout(0.08)
+				self.socks[1].connect((self.host.addr, 443))
+				rtt = time.time()
+				self.socks[1].send(self.HTTP_MSG)
+				_ = self.socks[1].recv_into(self.buffers[1])
+				rtt = time.time() - rtt
+
+			except (OSError, socket.gaierror, socket.timeout) as e:
+				# If this happens, the server likely went down
+				utils.warn("Could not connect to %s:443 - %s" % (self.host.addr, e))
+				return None
+
+		except (socket.gaierror, socket.timeout) as e:
 			utils.warn("Could not connect to %s:443 - %s" % (self.host.addr, e))
 			return None
 
@@ -190,33 +245,31 @@ class Scanner():
 			# Creating a new buffer is faster than clearing the old one
 			self.buffers[1] = bytearray(1024)
 
-	def mysql(url: utils.Host) -> typing.Optional[typing.Tuple[float, str]]:
+	def mysql(self) -> typing.Optional[typing.Tuple[float, str]]:
 		"""
 		Checks for a MySQL server running on port 3306.
 
 		Returns a tuple containing the total latency and the server version if one is found.
 		"""
 
-		s = self.socks[2]
-		try:
-			rtt = time.time()
-			s.connect((self.host.addr, 3306))
-			_ = s.recv_into(self.buffers[2])
-			return (time.time() - rtt)* 1000, sock.recv(1000)[5:10].decode()
-		except (UnicodeError, OSError, ConnectionRefusedError, socket.gaierror, socket.timeout) as e:
-			utils.warn("Could not connect to %s:3306 - %s" % (self.host.addr, e))
-			return None
-		else:
-			rtt = (time.time() - rtt)*1000
-			try:
-				return rtt, self.buffers[2][5:10].decode()
-			except UnicodeError:
-				utils.warn("Server at %s:3306 doesn't appear to be mysql." % self.host.addr)
-				return rtt, "Unknown"
+		with socket.socket(family=self.host.family) as s:
 
-		finally:
-			# Creating a new buffer is faster than clearing the old one
-			self.buffers[2] = bytearray(1024)
+			try:
+				rtt = time.time()
+				s.connect((self.host.addr, 3306))
+				_ = s.recv_into(self.buffers[2])
+				ret = sock.recv(1024)
+
+			except (OSError, socket.gaierror, socket.timeout) as e:
+				utils.warn("Could not connect to %s:3306 - %s" % (self.host.addr, e))
+				return None
+
+		rtt = (time.time() - rtt)*1000
+		try:
+			return rtt, ret[5:10].decode()
+		except UnicodeError:
+			utils.warn("Server at %s:3306 doesn't appear to be mysql." % self.host.addr)
+			return rtt, "Unknown"
 
 
 # Functional implementation provided for convenience/legacy support
