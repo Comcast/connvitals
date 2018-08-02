@@ -218,3 +218,24 @@ class Pinger(object):
 				seqno = self.icmpParse(pkt)
 				if seqno >= 0:
 					return time.time() - self.timestamps[seqno]
+
+
+
+	def __enter__(self) -> "Pinger":
+		"""
+		Context-managed instantiation
+		"""
+		return self
+
+	def __exit__(self, exc_type, exc_value, traceback):
+		"""
+		Context-managed cleanup
+		"""
+		self.sock.shutdown(socket.SHUT_RDWR)
+		self.sock.close()
+
+		if exc_type and exc_value:
+			utils.error(exc_type("Unknown error occurred while pinging"))
+			utils.error(exc_type(exc_value))
+			if traceback:
+				utils.warn(traceback)
