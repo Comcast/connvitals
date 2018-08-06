@@ -89,7 +89,6 @@ class Pinger(object):
 			# ICMP has no notion of port numbers
 			self.sock.sendto(bytes(pkt), (self.host.addr, 1))
 		except Exception as e:
-			print(pkt, bytes(pkt), self.host.addr, seqno, sep='\n')
 			#Sometimes, when the network is unreachable this will erroneously report that there's an
 			#'invalid argument', which is impossible since the hostnames are coming straight from
 			#`socket` itself
