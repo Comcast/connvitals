@@ -209,7 +209,7 @@ class Pinger(object):
 
 			try:
 				pkt, addr = self.sock.recvfrom(100+len(self.payload))
-			except socket.timeout:
+			except (socket.timeout, TimeoutError):
 				return -1
 
 			# The packet must have actually come from the host we pinged
