@@ -19,7 +19,6 @@ and MySQL servers on port 3306.
 """
 
 import socket
-import logging
 import time
 import multiprocessing.pool
 import typing
