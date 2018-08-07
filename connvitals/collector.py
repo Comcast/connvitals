@@ -126,7 +126,7 @@ class Collector(multiprocessing.Process):
 		if rtt:
 			self.result[0] = utils.PingResult(min(rtt), avg, max(rtt), std, lost/self.conf.NUMPINGS *100.0)
 		else:
-			self.result[0] = utils.PingResult(-1., -1., -1., -1, 100.0)
+			self.result[0] = type(self).result[0]
 
 
 	def __str__(self) -> str:
