@@ -230,7 +230,6 @@ class Pinger(object):
 		"""
 		Context-managed cleanup
 		"""
-		self.sock.shutdown(socket.SHUT_RDWR)
 		self.sock.close()
 
 		if exc_type and exc_value:
