@@ -81,8 +81,11 @@ class Collector(multiprocessing.Process):
 					self.result[2] = type(self).result[2]
 			else:
 				self.result[2] = None
-
-			self.pipe[1].send(self.result)
+			try:
+				self.pipe[1].send(self.result)
+			except OSError as e:
+				utils.error(e)
+				utils.error("WAT", True)
 
 	def ping(self, pool:multiprocessing.pool.ThreadPool, pinger:ping.Pinger = None):
 		"""

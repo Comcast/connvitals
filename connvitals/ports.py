@@ -119,25 +119,22 @@ class Scanner():
 
 		If `pool` is `None`, each scan is done sequentially.
 		"""
-		try:
-			if pool:
-				if pool is True:
-					with multiprocessing.pool.ThreadPool(3) as p:
-						httpresult = p.apply_async(self.http, ())
-						httpsresult = p.apply_async(self.https, ())
-						mysqlresult = p.apply_async(self.mysql, ())
+		if pool:
+			if pool is True:
+				with multiprocessing.pool.ThreadPool(3) as p:
+					httpresult = p.apply_async(self.http, ())
+					httpsresult = p.apply_async(self.https, ())
+					mysqlresult = p.apply_async(self.mysql, ())
 
-						return utils.ScanResult(httpresult.get(), httpsresult.get(), mysqlresult.get())
+					return utils.ScanResult(httpresult.get(), httpsresult.get(), mysqlresult.get())
 
-				httpresult = pool.apply_async(self.http, ())
-				httpsresult = pool.apply_async(self.https, ())
-				mysqlresult = pool.apply_async(self.mysql, ())
+			httpresult = pool.apply_async(self.http, ())
+			httpsresult = pool.apply_async(self.https, ())
+			mysqlresult = pool.apply_async(self.mysql, ())
 
-				return utils.ScanResult(httpresult.get(), httpsresult.get(), mysqlresult.get())
+			return utils.ScanResult(httpresult.get(), httpsresult.get(), mysqlresult.get())
 
-			return utils.ScanResult(self.http(), self.https(), self.mysql())
-		except OSError:
-			logging.debug("Scanning Error:", exc_info=True, stack_info=True)
+		return utils.ScanResult(self.http(), self.https(), self.mysql())
 
 	def http(self) -> typing.Optional[typing.Tuple[float, str, str]]:
 		"""
