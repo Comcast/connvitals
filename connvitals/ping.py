@@ -74,6 +74,66 @@ class Pinger(object):
 
 		self.timestamps = {}
 
+	def sendAll(self, num:int) -> utils.PingResult:
+		"""
+		Sends all pings sequentially in one thread
+		"""
+		for i in range(num):
+			pkt = icmp.ICMPPkt(self.host, payload=struct.pack("!HH", 2, i))
+			self.timestamps[i] = time.time()
+
+			try:
+				self.sock.sendto(bytes(pkt), (self.host.addr, 1))
+			except Exception as e:
+				utils.err("Network is unreachable... (%s)" % e)
+
+		return self.recvAll(num)
+
+	def recvAll(self, num:int) -> utils.PingResult:
+		"""
+		Recieves and parses all packets
+		"""
+		maxPacketLen, found = 100 + len(self.payload), 0
+		pkts = [-1,]*num
+
+		while found < num:
+
+			try:
+				pkt, addr = self.sock.recvfrom(maxPacketLen)
+			except (socket.timeout, TimeoutError):
+				# If we hit a socket timeout, we'll consider the packet dropped
+				found += 1
+				continue
+
+			if addr[0] == self.host[0]:
+				seqno = self.icmpParse(pkt)
+				if seqno in range(len(pkts)):
+					pkts[seqno] = time.time() - self.timestamps[seqno]
+					found += 1
+
+		# All packets collected; parse and return the results
+		rtt, lost = [], 0
+		for pkt in pkts:
+			if pkt > 0:
+				rtt.append(pkt*1000)
+			else:
+				lost += 1
+
+		if lost == num:
+			return utils.PingResult(-1, -1, -1, -1, 100.)
+
+		try:
+			avg = sum(rtt) / len(rtt)
+			std = 0.
+			for item in rtt:
+				std += (avg - item) ** 2
+			std /= len(rtt) - 1
+			std = math.sqrt(std)
+		except ZeroDivisionError:
+			std = 0.
+
+		return utils.PingResult(min(rtt), avg, max(rtt), std, lost/num * 100.0)
+
 	def ping(self, seqno: int) -> float:
 		"""
 		Sends a single icmp packet to the remote host.
