@@ -21,6 +21,7 @@ import socket
 import struct
 import time
 import sys
+import math
 from . import utils
 from . import icmp
 

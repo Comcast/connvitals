@@ -84,8 +84,7 @@ class Collector(multiprocessing.Process):
 			try:
 				self.pipe[1].send(self.result)
 			except OSError as e:
-				utils.error(e)
-				utils.error("WAT", True)
+				utils.error(OSError("Error sending results: %s" % e))
 
 	def ping(self, pool:multiprocessing.pool.ThreadPool, pinger:ping.Pinger = None):
 		"""
