@@ -44,7 +44,7 @@ def icmpParse(pkt: bytes, ipv6: bool) -> int:
 	except (IndexError, struct.error):
 		return -1
 
-class Pinger(object):
+class Pinger():
 	"""
 	A data structure that handles icmp pings to a remote machine.
 	"""
@@ -57,11 +57,11 @@ class Pinger(object):
 		self.sock, self.icmpParse, self.mkPkt = None, None, None
 
 		if host[1] == socket.AF_INET6:
-			self.sock = socket.socket(host[1], socket.SOCK_RAW, proto=58)
+			self.sock = socket.socket(host[1], socket.SOCK_RAW, proto=socket.IPPROTO_ICMP)
 			self.icmpParse = self._icmpv6Parse
 			self.mkPkt = self._mkPkt6
 		else:
-			self.sock = socket.socket(host[1], socket.SOCK_RAW, proto=1)
+			self.sock = socket.socket(host[1], socket.SOCK_RAW, proto=socket.IPPROTO_ICMPV6)
 			self.icmpParse = self._icmpv4Parse
 			self.mkPkt = self._mkPkt4
 
