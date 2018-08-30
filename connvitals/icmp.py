@@ -24,6 +24,8 @@ import struct
 import enum
 from . import utils
 
+
+
 # Gets our local IP address, for calculating ICMPv6 checksums
 with socket.socket(socket.AF_INET6, socket.SOCK_DGRAM) as s:
 	s.connect(("2001:4998:c:1023::4", 1)) #yahoo.com public IPv6 address
@@ -134,7 +136,7 @@ def ICMPv6_checksum(pkt: bytes, laddr: bytes, raddr: bytes) -> int:
 
 	# Add any left-over byte (for odd-length packets)
 	if len(packet) % 2:
-		total += ord(packet[-1]) << 8
+		total += packet[-1] << 8
 
 	# Fold 32-bits into 16-bits
 	total = (total >> 16) + (total & 0xffff)
@@ -185,6 +187,7 @@ class ICMPPkt():
 		elif payload:
 			self.Host = host
 			self.outbound = True
+			self.fmt = self.fmt.replace('4', str(4+len(payload)))
 
 			if self.Host[1] == socket.AF_INET6:
 				self.version = 6
@@ -205,7 +208,7 @@ class ICMPPkt():
 		"""
 		global LADDR
 
-		pkt = struct.pack("!BB2s4s", self.Type, self.Code, b'\x00\x00\x00\x00', self.Payload)
+		pkt = struct.pack(self.fmt.replace('H', "2s"), self.Type, self.Code, b'\x00\x00\x00\x00', self.Payload)
 
 		if self.version == 6:
 
@@ -219,6 +222,7 @@ class ICMPPkt():
 			return ICMPv6_checksum(pkt, hostaddr, LADDR)
 
 		return ICMP_checksum(pkt)
+
 
 	def __bytes__(self) -> bytes:
 		"""
