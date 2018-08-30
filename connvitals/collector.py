@@ -102,7 +102,7 @@ class Collector(multiprocessing.Process):
 		results = pool.map_async(pinger.ping,
 		                              range(self.conf.NUMPINGS),
 		                              error_callback=utils.error)
-		pkts = results.get(8)
+		pkts = results.get(2)
 
 		for pkt in pkts:
 			if pkt != None and pkt > 0:
