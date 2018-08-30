@@ -56,18 +56,18 @@ class Pinger():
 
 		self.sock, self.icmpParse, self.mkPkt = None, None, None
 
-		if host[1] == socket.AF_INET6:
-			self.sock = socket.socket(host[1], socket.SOCK_RAW, proto=socket.IPPROTO_ICMP)
+		if host.family == socket.AF_INET6:
+			self.sock = socket.socket(host.family, socket.SOCK_RAW, proto=socket.IPPROTO_ICMPV6)
 			self.icmpParse = self._icmpv6Parse
 			self.mkPkt = self._mkPkt6
 		else:
-			self.sock = socket.socket(host[1], socket.SOCK_RAW, proto=socket.IPPROTO_ICMPV6)
+			self.sock = socket.socket(host.family, socket.SOCK_RAW, proto=socket.IPPROTO_ICMP)
 			self.icmpParse = self._icmpv4Parse
 			self.mkPkt = self._mkPkt4
 
 		self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-		self.sock.settimeout(2)
+		self.sock.settimeout(1)
 		self.payload = payload
 
 		#Build a socket object
@@ -266,10 +266,12 @@ class Pinger():
 		"""
 		# If a packet is not an echo reply, icmpParse will give its seqno as -1
 		# This lets us disregard packets from traceroutes immediately
+		maxlen = 100+len(self.payload) #this should be enough to cover headers and whatnot
+
 		while True:
 
 			try:
-				pkt, addr = self.sock.recvfrom(100+len(self.payload))
+				pkt, addr = self.sock.recvfrom(maxlen)
 			except (socket.timeout, TimeoutError):
 				return -1
 
@@ -278,7 +280,6 @@ class Pinger():
 				seqno = self.icmpParse(pkt)
 				if seqno >= 0:
 					return time.time() - self.timestamps[seqno]
-
 
 
 	def __enter__(self) -> "Pinger":
