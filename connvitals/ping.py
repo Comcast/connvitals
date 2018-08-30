@@ -84,7 +84,7 @@ class Pinger():
 			self.timestamps[i] = time.time()
 
 			try:
-				self.sock.sendto(bytes(pkt), (self.host.addr, 1))
+				self.sock.sendto(bytes(pkt), (self.host.addr, 0))
 			except Exception as e:
 				utils.err("Network is unreachable... (%s)" % e)
 
@@ -148,7 +148,7 @@ class Pinger():
 
 		try:
 			# ICMP has no notion of port numbers
-			self.sock.sendto(bytes(pkt), (self.host.addr, 1))
+			self.sock.sendto(bytes(pkt), (self.host.addr, 0))
 		except Exception as e:
 			#Sometimes, when the network is unreachable this will erroneously report that there's an
 			#'invalid argument', which is impossible since the hostnames are coming straight from
