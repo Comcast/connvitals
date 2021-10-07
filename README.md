@@ -14,7 +14,7 @@ However, in most cases you will need `setuptools` after installation, and if you
 
 ## Installation
 ### Binary packages
-Binary packages are offered in `.rpm` format for Fedora/CentOS/RHEL and `.whl` format for all other operating systems under '[Releases](https://github.com/connvitals/releases)'.
+Binary packages are offered in `.rpm` format for Fedora/CentOS/RHEL and `.whl` format for all other operating systems under '[Releases](https://github.com/Comcast/connvitals/releases)'.
 
 ### Via `pip` (standard)
 By far the simplest way to install this package is to simply use `pip` like so:
