@@ -26,7 +26,7 @@ Note that it's likely you'll need to either run this command as an administrator
 ### Via `pip` (From This Repository)
 If for some reason the standard python package index is unavailable to you, you can install directly from this repository without needing to manually download it by running
 ```bash
-user@hostname ~ $ pip install git+https://github.com/connvitals.git#egg=connvitals
+user@hostname ~ $ pip install git+https://github.com/Comcast/connvitals.git#egg=connvitals
 ```
 Note that you may need to run this command as root/with `sudo` or with `--user`, depending on your `pip` installation. Also ensure that `pip` is installing packages for Python 3.x. Typically, if both Python2 and Python3 exist on a system with `pip` installed for both, the `pip` to use for Python3 packages is accessible as `pip3`.
 
