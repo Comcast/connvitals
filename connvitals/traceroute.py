@@ -39,17 +39,20 @@ class Tracer():
 		self.maxHops = maxHops
 
 		# A bunch of stuff needs to be tweaked if we're using IPv6
-		if host.family is socket.AF_INET6:
-			# BTW, this doesn't actually work. The RFCs for IPv6 don't define
-			# the behaviour of raw sockets - which are heavily utilized by
-			# `connvitals`. One of these days, I'll have to implement it using
-			# raw ethernet frames ...
-
-			self.receiver = socket.socket(family=host.family,
-			                              type=socket.SOCK_RAW,
-			                              proto=socket.IPPROTO_ICMPV6)
-			self.setTTL = self.setIPv6TTL
-			self.isMyTraceResponse = self.isMyIPv6TraceResponse
+ 		if host.family is socket.AF_INET6:
+			if socket.has_ipv6:
+				# BTW, this doesn't actually work. The RFCs for IPv6 don't define
+				# the behaviour of raw sockets - which are heavily utilized by
+				# `connvitals`. One of these days, I'll have to implement it using
+				# raw ethernet frames ...
+		
+				self.receiver = socket.socket(family=host.family,
+							      type=socket.SOCK_RAW,
+							      proto=socket.IPPROTO_ICMPV6)
+				self.setTTL = self.setIPv6TTL
+				self.isMyTraceResponse = self.isMyIPv6TraceResponse
+			else:
+				raise EnvironmentError("IPv6 stack is not available on this system.")
 
 		else:
 			self.receiver = socket.socket(family=host.family,
